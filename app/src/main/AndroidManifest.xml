@@ -26,7 +26,7 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="Virtual Camera Injection for Images and Videos with Rotation and Mirroring support." />
+            android:value="@string/xposed_description" />
         <meta-data
             android:name="xposedminversion"
             android:value="101" />
