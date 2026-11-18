@@ -2,6 +2,8 @@ name: Android Release APK
 
 on:
   push:
+    branches:
+      - 'feature/chinese-ui-launcher'
     tags:
       - 'v*'
   workflow_dispatch:
