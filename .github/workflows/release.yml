@@ -25,12 +25,10 @@ jobs:
           cache: gradle
 
       - name: Prepare signing key
-        env:
-          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
           set -euo pipefail
-          test -n "$SIGNING_KEY" || (echo "Missing repository secret: SIGNING_KEY" && exit 1)
-          printf '%s' "$SIGNING_KEY" | base64 --decode > app/release-key.jks
+          test -s .github/keystore/xcam-release.jks.base64
+          base64 --decode .github/keystore/xcam-release.jks.base64 > app/release-key.jks
           test -s app/release-key.jks
           chmod 600 app/release-key.jks
 
