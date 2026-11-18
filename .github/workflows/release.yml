@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,8 +12,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      commit_message: ${{ steps.msg.outputs.text }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,45 +24,53 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Prepare Build
-        id: msg
+      - name: Prepare signing key
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
-          chmod +x gradlew
-          printf "%s" "${{ secrets.SIGNING_KEY }}" | base64 --decode > app/release-key.jks
-          echo "text<<EOF" >> $GITHUB_OUTPUT
-          git log -1 --pretty=%B >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          test -n "$SIGNING_KEY" || (echo "Missing repository secret: SIGNING_KEY" && exit 1)
+          printf '%s' "$SIGNING_KEY" | base64 --decode > app/release-key.jks
+          test -s app/release-key.jks
+          chmod 600 app/release-key.jks
 
-      - name: Build
-        run: |
-          V_NAME=$(echo "${{ github.ref_name }}" | sed 's/^v//')
-          V_CODE=$(git tag | wc -l)
-          ./gradlew assembleRelease -PAPP_VERSION_CODE=$V_CODE -PAPP_VERSION_NAME=$V_NAME
+      - name: Build signed Release APK
         env:
           RELEASE_STORE_FILE: release-key.jks
           RELEASE_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            V_NAME="${GITHUB_REF_NAME#v}"
+            V_CODE=$(git tag --list 'v*' | wc -l)
+          else
+            V_NAME="1.0.0"
+            V_CODE=1
+          fi
+          ./gradlew assembleRelease -PAPP_VERSION_CODE="$V_CODE" -PAPP_VERSION_NAME="$V_NAME"
 
       - name: Rename APK
         run: |
-          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
-          TAG_NAME=${{ github.ref_name }}
-          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/${REPO_NAME}-${TAG_NAME}.apk
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then TAG_NAME="${GITHUB_REF_NAME}"; else TAG_NAME="manual-${GITHUB_RUN_NUMBER}"; fi
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/${REPO_NAME}-${TAG_NAME}.apk"
 
-      - name: Release
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/*.apk
-          body: ${{ steps.msg.outputs.text }}
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  mirror:
-    needs: build
-    uses: ./.github/workflows/mirror_official.yml
-    with:
-      tag_name: ${{ github.ref_name }}
-      release_name: ${{ github.ref_name }}
-      release_body: ${{ needs.build.outputs.commit_message }}
-    secrets: inherit
+      - name: Upload signed APK artifact
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xCam-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
