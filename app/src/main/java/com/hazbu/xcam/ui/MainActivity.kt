@@ -84,7 +84,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (!isGranted) {
-            Toast.makeText(this, "Notification permission is required for Capture Alert Card", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_notification_permission), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -210,7 +210,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             val time = prefs.getLong(KEY_LATEST_PIPELINE_TIME, 0L)
 
             if (app.isEmpty() && route.isEmpty()) {
-                Toast.makeText(this, "No route to copy", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_no_route_to_copy), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -219,15 +219,15 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             } else ""
 
             val copyText = buildString {
-                if (app.isNotEmpty()) append("Target: $app\n")
-                if (route.isNotEmpty()) append("Route: $route\n")
-                if (formattedTime.isNotEmpty()) append("Time: $formattedTime")
+                if (app.isNotEmpty()) append("目标应用：$app\n")
+                if (route.isNotEmpty()) append("拦截路径：$route\n")
+                if (formattedTime.isNotEmpty()) append("时间：$formattedTime")
             }.trim()
 
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            val clip = ClipData.newPlainText("xCam Pipeline", copyText)
+            val clip = ClipData.newPlainText(getString(R.string.clipboard_pipeline), copyText)
             clipboard?.setPrimaryClip(clip)
-            Toast.makeText(this, "Pipeline route copied to clipboard", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_pipeline_copied), Toast.LENGTH_SHORT).show()
         }
 
         btnClearPipeline.setOnClickListener {
@@ -237,7 +237,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
                 remove(KEY_LATEST_PIPELINE_TIME)
             }
             loadTelemetryUI()
-            Toast.makeText(this, "Pipeline history cleared", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_pipeline_cleared), Toast.LENGTH_SHORT).show()
         }
 
         btnMirror.setOnClickListener {
@@ -273,7 +273,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             val isVideo = mimeType.startsWith("video/")
 
             if (!isImage && !isVideo) {
-                Toast.makeText(this, "Invalid file type. Only images and videos are supported.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.toast_invalid_media), Toast.LENGTH_LONG).show()
                 return
             }
             
@@ -289,7 +289,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
                 }
                 
                 val outputVideo = File(filesDir, DEFAULT_VIDEO_NAME)
-                Toast.makeText(this, "Converting image to video...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_converting_image), Toast.LENGTH_SHORT).show()
                 
                 com.hazbu.xcam.utils.MediaConverter.convertImageToMp4(
                     this, Uri.fromFile(internalImage), outputVideo
@@ -300,7 +300,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
                             saveMediaPath(outputVideo.absolutePath)
                             Toast.makeText(this, R.string.toast_media_imported, Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(this, "Conversion failed", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, getString(R.string.toast_conversion_failed), Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
