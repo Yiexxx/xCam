@@ -7,6 +7,9 @@
     <string name="note_restart">提示：修改后需要重新启动目标应用才能生效。</string>
     <string name="toast_media_removed">已移除媒体</string>
     <string name="toast_media_imported">媒体导入成功</string>
+    <string name="toast_photos_imported">已导入 %1$d 张照片，可左右滑动切换</string>
+    <string name="toast_select_photos_or_one_video">照片可以多选；视频请一次选择一个。</string>
+    <string name="label_media_counter">%1$d / %2$d</string>
     <string name="toast_media_import_failed">媒体导入失败：%s</string>
     <string name="desc_media_preview">媒体预览</string>
     <string name="status_module_active">模块已激活</string>
