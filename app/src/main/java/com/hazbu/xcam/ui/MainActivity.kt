@@ -692,9 +692,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     private fun syncPhotoControlService() {
-        val controlsStopped = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .getBoolean("photo_control_stopped", false)
-        if (mediaPaths.isEmpty() || controlsStopped) {
+        if (mediaPaths.isEmpty()) {
             stopService(Intent(this, PhotoControlService::class.java))
             return
         }
