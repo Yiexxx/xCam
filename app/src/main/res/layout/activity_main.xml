@@ -118,13 +118,6 @@
                     android:gravity="center"
                     android:paddingBottom="16dp">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:paddingBottom="16dp">
-
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_rotate_left"
                         style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
@@ -160,7 +153,6 @@
                         app:icon="@drawable/ic_rotate_right"
                         android:contentDescription="@string/desc_rotate_right" />
                 </LinearLayout>
- </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_select_video"
