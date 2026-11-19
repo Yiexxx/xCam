@@ -49,7 +49,7 @@ class PhotoControlService : Service() {
         if (paths.isEmpty()) {
             stopForegroundAndRemove()
             stopSelf()
-            return START_NOT_STICKY
+            return START_STICKY
         }
 
         val index = readCurrentIndex(paths.size)
@@ -69,11 +69,8 @@ class PhotoControlService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        // With stopWithTask=true, Android stops this service when its task is
-        // removed from Recents. Clear persisted selection here as the primary
-        // cleanup path. This is idempotent with onTaskRemoved().
-        clearSelectedMedia()
-        notifyMediaCleared()
+        // A normal service shutdown or restart must not erase the user's selection.
+        // Recents dismissal is handled by onTaskRemoved().
         super.onDestroy()
     }
 
