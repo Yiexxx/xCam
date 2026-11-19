@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">xCam 虚拟相机</string>
+    <string name="app_name">xCam</string>
     <string name="title_manager">xCam</string>
     <string name="label_media_preview">媒体预览</string>
     <string name="label_none">暂无媒体</string>
