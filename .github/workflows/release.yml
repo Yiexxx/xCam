@@ -1,7 +1,8 @@
 name: Android Release APK
 
-# Build and publish a signed APK automatically after every successful
-# push to the feature branch. The main branch is intentionally untouched.
+# Build and publish a signed APK after every successful push to the feature branch.
+# Android app version remains fixed at versionName 1.0.0 / versionCode 1.
+# Release tags are unique build identifiers and do not change the app version.
 
 on:
   push:
@@ -41,23 +42,15 @@ jobs:
           test -s app/release-key.jks
           chmod 600 app/release-key.jks
 
-      - name: Determine release version
+      - name: Set fixed app version
         id: version
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            V_NAME="${GITHUB_REF_NAME#v}"
-            TAG_NAME="${GITHUB_REF_NAME}"
-          else
-            V_NAME="1.0.${GITHUB_RUN_NUMBER}"
-            TAG_NAME="v${V_NAME}"
-          fi
-          V_CODE="${GITHUB_RUN_NUMBER}"
-          echo "version_name=${V_NAME}" >> "${GITHUB_OUTPUT}"
-          echo "version_code=${V_CODE}" >> "${GITHUB_OUTPUT}"
-          echo "tag_name=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
-          echo "APK will be released as ${TAG_NAME} (versionCode ${V_CODE})"
+          echo "version_name=1.0.0" >> "${GITHUB_OUTPUT}"
+          echo "version_code=1" >> "${GITHUB_OUTPUT}"
+          # Unique tag per build; APK's Android version remains 1.0.0 (1).
+          echo "tag_name=xcam-v1.0.0-build-${GITHUB_RUN_NUMBER}" >> "${GITHUB_OUTPUT}"
 
       - name: Build signed Release APK
         env:
@@ -69,23 +62,26 @@ jobs:
           set -euo pipefail
           chmod +x gradlew
           ./gradlew assembleRelease \
-            -PAPP_VERSION_CODE="${{ steps.version.outputs.version_code }}" \
-            -PAPP_VERSION_NAME="${{ steps.version.outputs.version_name }}"
+            -PAPP_VERSION_CODE=1 \
+            -PAPP_VERSION_NAME=1.0.0
           test -s app/build/outputs/apk/release/app-release.apk
 
       - name: Rename APK
         run: |
           set -euo pipefail
-          REPO_NAME="${GITHUB_REPOSITORY##*/}"
           cp app/build/outputs/apk/release/app-release.apk \
-            "app/build/outputs/apk/release/${REPO_NAME}-${{ steps.version.outputs.tag_name }}.apk"
+            "app/build/outputs/apk/release/xCam-1.0.0-build-${GITHUB_RUN_NUMBER}.apk"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag_name }}
           target_commitish: ${{ github.sha }}
-          name: xCam ${{ steps.version.outputs.tag_name }}
+          name: xCam v1.0.0
+          body: |
+            Android app version: 1.0.0
+            Android versionCode: 1
+            Build: ${{ github.run_number }}
           files: app/build/outputs/apk/release/*.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
@@ -96,6 +92,6 @@ jobs:
       - name: Upload signed APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: xCam-${{ steps.version.outputs.tag_name }}
+          name: xCam-1.0.0-build-${{ github.run_number }}
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
