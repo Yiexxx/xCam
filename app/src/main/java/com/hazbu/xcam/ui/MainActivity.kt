@@ -763,7 +763,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         val titleText = tvTitle.text.toString()
         val spannable = SpannableStringBuilder(titleText)
         val primaryColor = MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary, "#FF6200EE".toColorInt())
-        spannable.setSpan(ForegroundColorSpan(primaryColor), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        spannable.setSpan(ForegroundColorSpan(primaryColor), 0, spannable.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         tvTitle.text = spannable
     }
 
