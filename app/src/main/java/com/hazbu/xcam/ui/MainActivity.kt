@@ -260,12 +260,14 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         ViewCompat.setOnApplyWindowInsetsListener(mainView) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val density = resources.displayMetrics.density
-            val basePadding = (24 * density).toInt()
+            val horizontalPadding = (24 * density).toInt()
+            val topSpacing = (8 * density).toInt()
+            val bottomSpacing = (16 * density).toInt()
             v.setPadding(
-                systemBars.left + basePadding,
-                systemBars.top + basePadding,
-                systemBars.right + basePadding,
-                systemBars.bottom + basePadding
+                systemBars.left + horizontalPadding,
+                systemBars.top + topSpacing,
+                systemBars.right + horizontalPadding,
+                systemBars.bottom + bottomSpacing
             )
             insets
         }
