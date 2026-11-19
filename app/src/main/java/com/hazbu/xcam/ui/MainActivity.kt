@@ -1,6 +1,7 @@
 package com.hazbu.xcam.ui
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -170,7 +171,19 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         val currentTaskId = taskId
 
         if (previousTaskId != -1 && previousTaskId != currentTaskId) {
-            PhotoControlService.clearSelectionAndStop(this)
+            // A changed taskId alone is not proof that the user dismissed xCam.
+            // If Android still reports the previous task, preserve the selection.
+            val previousTaskStillExists = try {
+                getSystemService(ActivityManager::class.java)
+                    .appTasks
+                    .any { it.taskInfo.id == previousTaskId }
+            } catch (_: Exception) {
+                false
+            }
+
+            if (!previousTaskStillExists) {
+                PhotoControlService.clearSelectionAndStop(this)
+            }
         }
 
         prefs.edit().putInt("photo_control_task_id", currentTaskId).commit()
