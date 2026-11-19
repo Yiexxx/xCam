@@ -31,21 +31,7 @@ class PhotoControlService : Service() {
         private const val CHANNEL_ID = "xcam_photo_controls"
         private const val NOTIFICATION_ID = 4102
 
-        fun clearSelectionAndStop(context: Context) {
-            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                .remove(KEY_MEDIA_PATH)
-                .putString("media_paths", JSONArray().toString())
-                .putInt("current_media_index", 0)
-                .putBoolean("photo_control_stopped", true)
-                .putBoolean(com.hazbu.xcam.data.Constants.KEY_IS_MIRRORED, false)
-                .putInt(com.hazbu.xcam.data.Constants.KEY_ROTATION_ANGLE, 0)
-                .commit()
-            context.filesDir.listFiles { _, name -> name.startsWith("virtual.") }
-                ?.forEach { it.delete() }
-            context.stopService(Intent(context, PhotoControlService::class.java))
-            context.getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
-            context.sendBroadcast(Intent(ACTION_MEDIA_CLEARED).setPackage(context.packageName))
-        }
+
     }
 
     override fun onCreate() {
@@ -77,7 +63,7 @@ class PhotoControlService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -89,10 +75,29 @@ class PhotoControlService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        clearSelectionAndStop(this)
+        clearSelectedMedia()
+        notifyMediaCleared()
         stopForegroundAndRemove()
         stopSelf()
         super.onTaskRemoved(rootIntent)
+    }
+
+    private fun clearSelectedMedia() {
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_MEDIA_PATH)
+            .putString("media_paths", JSONArray().toString())
+            .putInt("current_media_index", 0)
+            .putBoolean("photo_control_stopped", true)
+            .putBoolean(com.hazbu.xcam.data.Constants.KEY_IS_MIRRORED, false)
+            .putInt(com.hazbu.xcam.data.Constants.KEY_ROTATION_ANGLE, 0)
+            .commit()
+
+        filesDir.listFiles { _, name -> name.startsWith("virtual.") }
+            ?.forEach { it.delete() }
+    }
+
+    private fun notifyMediaCleared() {
+        sendBroadcast(Intent(ACTION_MEDIA_CLEARED).setPackage(packageName))
     }
 
     private fun movePhoto(direction: Int) {

@@ -703,14 +703,13 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     private fun syncPhotoControlService() {
-        if (mediaPaths.isEmpty()) {
+        val controlsStopped = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getBoolean("photo_control_stopped", false)
+        if (mediaPaths.isEmpty() || controlsStopped) {
             stopService(Intent(this, PhotoControlService::class.java))
             return
         }
 
-        // Android permits foreground services without POST_NOTIFICATIONS.
-        // Keep this service running so onTaskRemoved() can distinguish a
-        // dismissed Recents task from an ordinary Home/background transition.
         ContextCompat.startForegroundService(
             this,
             Intent(this, PhotoControlService::class.java).setAction(PhotoControlService.ACTION_START)
