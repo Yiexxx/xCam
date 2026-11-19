@@ -43,6 +43,9 @@ class PhotoControlService : Service() {
             ACTION_PREVIOUS -> movePhoto(-1)
             ACTION_NEXT -> movePhoto(1)
             ACTION_STOP -> {
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                    .putBoolean("photo_control_stopped", true)
+                    .apply()
                 stopForegroundAndRemove()
                 stopSelf()
                 return START_NOT_STICKY
@@ -82,6 +85,7 @@ class PhotoControlService : Service() {
         prefs.edit()
             .putInt("current_media_index", next)
             .putString(KEY_MEDIA_PATH, paths[next])
+            .putBoolean("photo_control_stopped", false)
             .apply()
     }
 
@@ -106,7 +110,7 @@ class PhotoControlService : Service() {
 
     private fun buildNotification(paths: List<String>, index: Int): Notification {
         val title = "xCam 照片控制"
-        val text = "第 \${index + 1} / \${paths.size} 张照片"
+        val text = "第 ${index + 1} / ${paths.size} 张照片"
         val thumbnail = loadThumbnail(paths[index])
         val contentIntent = PendingIntent.getActivity(
             this,
