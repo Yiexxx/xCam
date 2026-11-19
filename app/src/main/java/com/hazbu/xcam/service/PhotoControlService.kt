@@ -69,15 +69,13 @@ class PhotoControlService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        // With stopWithTask=true, Android stops this service when the app task
-        // is removed from Recents. Going Home does not stop the foreground service.
-        clearSelectedMedia()
-        notifyMediaCleared()
+        // Do not clear selected media here: normal service shutdown/restart
+        // must not erase the user's selection. Recents dismissal is handled
+        // explicitly by onTaskRemoved().
         super.onDestroy()
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // Keep a fallback for devices that still dispatch this callback.
         clearSelectedMedia()
         notifyMediaCleared()
         stopForegroundAndRemove()
