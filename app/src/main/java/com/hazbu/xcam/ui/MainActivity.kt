@@ -633,6 +633,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         }
         updatePreview(path)
         updateMediaCounter()
+        updatePreviewTransform()
     }
 
     private fun updateMediaCounter() {
