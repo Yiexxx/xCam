@@ -54,7 +54,7 @@ class PhotoControlService : Service() {
         }
 
         val paths = readMediaPaths()
-        if (paths.size < 2) {
+        if (paths.isEmpty()) {
             stopForegroundAndRemove()
             stopSelf()
             return START_NOT_STICKY
@@ -92,7 +92,7 @@ class PhotoControlService : Service() {
             .putBoolean("photo_control_stopped", true)
             .putBoolean(com.hazbu.xcam.data.Constants.KEY_IS_MIRRORED, false)
             .putInt(com.hazbu.xcam.data.Constants.KEY_ROTATION_ANGLE, 0)
-            .apply()
+            .commit()
 
         filesDir.listFiles { _, name -> name.startsWith("virtual.") }
             ?.forEach { it.delete() }
