@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
@@ -17,6 +19,8 @@ import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.view.MotionEvent
 import android.view.ViewConfiguration
+import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -59,6 +63,8 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     private lateinit var ivPreview: ImageView
+    private lateinit var previewStack: FrameLayout
+    private val previewCards = mutableListOf<ImageView>()
     private lateinit var tvNoPreview: TextView
     private lateinit var tvMediaCounter: TextView
     private lateinit var btnDeleteMedia: MaterialButton
@@ -180,7 +186,8 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private fun setupUI() {
         val tvTitle = findViewById<TextView>(R.id.tv_title)
         setupTitleSpannable(tvTitle)
-        ivPreview = findViewById(R.id.iv_preview)
+        previewStack = findViewById(R.id.preview_stack)
+        setupPreviewCards()
         tvNoPreview = findViewById(R.id.tv_no_preview)
         tvMediaCounter = findViewById(R.id.tv_media_counter)
         btnDeleteMedia = findViewById(R.id.btn_delete_media)
@@ -264,53 +271,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             updatePreviewTransform()
         }
         btnDeleteMedia.setOnClickListener { deleteMedia() }
-        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
-        val swipeThreshold = 48f * resources.displayMetrics.density
-        ivPreview.isClickable = true
-        ivPreview.setOnTouchListener { view, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    touchStartX = event.x
-                    touchStartY = event.y
-                    view.parent?.requestDisallowInterceptTouchEvent(false)
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val deltaX = event.x - touchStartX
-                    val deltaY = event.y - touchStartY
-                    if (kotlin.math.abs(deltaX) > touchSlop &&
-                        kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY)
-                    ) {
-                        // Keep the horizontal gesture away from the enclosing NestedScrollView.
-                        view.parent?.requestDisallowInterceptTouchEvent(true)
-                    } else if (kotlin.math.abs(deltaY) > touchSlop &&
-                        kotlin.math.abs(deltaY) > kotlin.math.abs(deltaX)
-                    ) {
-                        // Let the page keep its normal vertical scrolling behavior.
-                        view.parent?.requestDisallowInterceptTouchEvent(false)
-                        return@setOnTouchListener false
-                    }
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    val deltaX = event.x - touchStartX
-                    val deltaY = event.y - touchStartY
-                    if (mediaPaths.size > 1 &&
-                        kotlin.math.abs(deltaX) >= swipeThreshold &&
-                        kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY)
-                    ) {
-                        showMediaAt(currentMediaIndex + if (deltaX < 0) 1 else -1)
-                    }
-                    view.parent?.requestDisallowInterceptTouchEvent(false)
-                    true
-                }
-                MotionEvent.ACTION_CANCEL -> {
-                    view.parent?.requestDisallowInterceptTouchEvent(false)
-                    true
-                }
-                else -> true
-            }
-        }
         btnSelectVideo.setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -447,30 +407,179 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         btnMirror.iconTint = android.content.res.ColorStateList.valueOf(if (isMirrored) activeIconColor else inactiveIconColor)
     }
 
-    private fun updatePreview(path: String) {
-        if (path.isEmpty() || !File(path).exists()) {
-            ivPreview.setImageBitmap(null)
-            tvNoPreview.visibility = View.VISIBLE
-            btnDeleteMedia.visibility = View.GONE
-            return
+    private fun setupPreviewCards() {
+        previewCards.clear()
+        val cardColor = MaterialColors.getColor(
+            this, com.google.android.material.R.attr.colorSurface, Color.WHITE
+        )
+        fun createCard(elevationDp: Float): ImageView = ImageView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = GradientDrawable().apply {
+                setColor(cardColor)
+                cornerRadius = 12f * resources.displayMetrics.density
+            }
+            clipToOutline = true
+            elevation = elevationDp * resources.displayMetrics.density
+            isClickable = true
+            setOnTouchListener { view, event ->
+                val touchSlop = ViewConfiguration.get(this@MainActivity).scaledTouchSlop
+                val swipeThreshold = 48f * resources.displayMetrics.density
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        touchStartX = event.x
+                        touchStartY = event.y
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                        true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = event.x - touchStartX
+                        val dy = event.y - touchStartY
+                        if (kotlin.math.abs(dx) > touchSlop && kotlin.math.abs(dx) > kotlin.math.abs(dy)) {
+                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                        } else if (kotlin.math.abs(dy) > touchSlop && kotlin.math.abs(dy) > kotlin.math.abs(dx)) {
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
+                            return@setOnTouchListener false
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        val dx = event.x - touchStartX
+                        val dy = event.y - touchStartY
+                        if (mediaPaths.size > 1 && kotlin.math.abs(dx) >= swipeThreshold &&
+                            kotlin.math.abs(dx) > kotlin.math.abs(dy)) {
+                            val direction = if (dx < 0) 1 else -1
+                            animateMediaTo(currentMediaIndex + direction, direction)
+                        }
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                        true
+                    }
+                    else -> true
+                }
+            }
         }
-        tvNoPreview.visibility = View.GONE
-        btnDeleteMedia.visibility = View.VISIBLE
-        try {
+        val backTwo = createCard(2f)
+        val backOne = createCard(4f)
+        val front = createCard(6f)
+        previewCards.addAll(listOf(front, backOne, backTwo))
+        previewStack.removeAllViews()
+        previewStack.addView(backTwo)
+        previewStack.addView(backOne)
+        previewStack.addView(front)
+        ivPreview = front
+        resetPreviewCardPositions()
+    }
+
+    private fun resetPreviewCardPositions() {
+        val density = resources.displayMetrics.density
+        previewCards.forEachIndexed { index, card ->
+            card.animate().cancel()
+            card.translationX = if (index == 1) 12f * density else if (index == 2) 23f * density else 0f
+            card.translationY = if (index == 1) 8f * density else if (index == 2) 16f * density else 0f
+            card.scaleX = if (index == 1) 0.96f else if (index == 2) 0.92f else 1f
+            card.scaleY = if (index == 1) 0.96f else if (index == 2) 0.92f else 1f
+            card.rotation = 0f
+            card.alpha = 1f
+            card.visibility = View.VISIBLE
+        }
+        // Draw the active card last so it remains above the two visible backing cards.
+        previewStack.removeAllViews()
+        previewStack.addView(previewCards[2])
+        previewStack.addView(previewCards[1])
+        previewStack.addView(previewCards[0])
+    }
+
+    private fun setPreviewImage(imageView: ImageView, path: String): Boolean {
+        return try {
             if (path.endsWith(".mp4", ignoreCase = true)) {
                 val retriever = MediaMetadataRetriever()
-                retriever.setDataSource(path)
-                val bitmap = retriever.getFrameAtTime(1000000)
-                ivPreview.setImageBitmap(bitmap)
-                retriever.release()
+                val bitmap = try {
+                    retriever.setDataSource(path)
+                    retriever.getFrameAtTime(1_000_000)
+                } finally {
+                    retriever.release()
+                }
+                imageView.setImageBitmap(bitmap)
+                bitmap != null
             } else {
                 val bitmap = BitmapFactory.decodeFile(path)
-                ivPreview.setImageBitmap(bitmap)
+                imageView.setImageBitmap(bitmap)
+                bitmap != null
             }
         } catch (_: Exception) {
-            ivPreview.setImageBitmap(null)
-            tvNoPreview.visibility = View.VISIBLE
+            imageView.setImageDrawable(null)
+            false
         }
+    }
+
+    private fun updatePreview(path: String) {
+        val valid = path.isNotEmpty() && File(path).exists() && setPreviewImage(ivPreview, path)
+        if (!valid) {
+            previewCards.forEach { it.setImageDrawable(null) }
+            tvNoPreview.visibility = View.VISIBLE
+            btnDeleteMedia.visibility = View.GONE
+            previewCards.drop(1).forEach { it.visibility = View.GONE }
+            resetPreviewCardPositions()
+            return
+        }
+
+        tvNoPreview.visibility = View.GONE
+        btnDeleteMedia.visibility = View.VISIBLE
+        previewCards.drop(1).forEachIndexed { offset, card ->
+            val mediaIndex = currentMediaIndex + offset + 1
+            val nextPath = mediaPaths.getOrNull(mediaIndex)
+            if (mediaPaths.size > 1 && nextPath != null && File(nextPath).exists() &&
+                setPreviewImage(card, nextPath)) {
+                card.visibility = View.VISIBLE
+            } else {
+                card.setImageDrawable(null)
+                card.visibility = View.GONE
+            }
+        }
+        resetPreviewCardPositions()
+    }
+
+    private fun animateMediaTo(index: Int, direction: Int) {
+        if (index !in mediaPaths.indices || previewCards.size < 2) return
+        val outgoing = previewCards[0]
+        val incoming = previewCards[1]
+        if (!setPreviewImage(incoming, mediaPaths[index])) return
+
+        val density = resources.displayMetrics.density
+        incoming.visibility = View.VISIBLE
+        incoming.translationX = direction * 26f * density
+        incoming.translationY = 8f * density
+        incoming.scaleX = 0.94f
+        incoming.scaleY = 0.94f
+        incoming.bringToFront()
+
+        incoming.animate()
+            .translationX(0f).translationY(0f)
+            .scaleX(1f).scaleY(1f)
+            .setDuration(280)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
+        outgoing.animate()
+            .translationX(-direction * (outgoing.width + 40f * density))
+            .rotation(-direction * 7f)
+            .alpha(0f)
+            .setDuration(280)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                previewCards.remove(incoming)
+                previewCards.add(0, incoming)
+                ivPreview = incoming
+                showMediaAt(index)
+            }
+            .start()
     }
 
     private fun saveSettings() {
