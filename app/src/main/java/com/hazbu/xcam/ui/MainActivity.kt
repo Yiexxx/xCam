@@ -15,8 +15,8 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.View
-import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -82,7 +82,8 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private var rotationAngle = 0
     private var mediaPaths: MutableList<String> = mutableListOf()
     private var currentMediaIndex = 0
-    private lateinit var mediaGestureDetector: GestureDetector
+    private var touchStartX = 0f
+    private var touchStartY = 0f
     private var mXposedService: XposedService? = null
 
     private val notifPermissionLauncher = registerForActivityResult(
@@ -263,25 +264,52 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             updatePreviewTransform()
         }
         btnDeleteMedia.setOnClickListener { deleteMedia() }
-        mediaGestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onDown(e: MotionEvent): Boolean = true
-
-            override fun onFling(
-                e1: MotionEvent?,
-                e2: MotionEvent,
-                velocityX: Float,
-                velocityY: Float
-            ): Boolean {
-                if (e1 == null || mediaPaths.size < 2) return false
-                val deltaX = e2.x - e1.x
-                if (kotlin.math.abs(deltaX) < 70f || kotlin.math.abs(velocityX) < 100f) return false
-                showMediaAt(currentMediaIndex + if (deltaX < 0) 1 else -1)
-                return true
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
+        val swipeThreshold = 48f * resources.displayMetrics.density
+        ivPreview.isClickable = true
+        ivPreview.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchStartX = event.x
+                    touchStartY = event.y
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val deltaX = event.x - touchStartX
+                    val deltaY = event.y - touchStartY
+                    if (kotlin.math.abs(deltaX) > touchSlop &&
+                        kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY)
+                    ) {
+                        // Keep the horizontal gesture away from the enclosing NestedScrollView.
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                    } else if (kotlin.math.abs(deltaY) > touchSlop &&
+                        kotlin.math.abs(deltaY) > kotlin.math.abs(deltaX)
+                    ) {
+                        // Let the page keep its normal vertical scrolling behavior.
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                        return@setOnTouchListener false
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val deltaX = event.x - touchStartX
+                    val deltaY = event.y - touchStartY
+                    if (mediaPaths.size > 1 &&
+                        kotlin.math.abs(deltaX) >= swipeThreshold &&
+                        kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY)
+                    ) {
+                        showMediaAt(currentMediaIndex + if (deltaX < 0) 1 else -1)
+                    }
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                    true
+                }
+                else -> true
             }
-        })
-        ivPreview.setOnTouchListener { _, event ->
-            mediaGestureDetector.onTouchEvent(event)
-            true
         }
         btnSelectVideo.setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
