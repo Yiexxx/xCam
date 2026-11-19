@@ -487,7 +487,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             card.scaleY = if (index == 1) 0.96f else if (index == 2) 0.92f else 1f
             card.rotation = 0f
             card.alpha = 1f
-            card.visibility = View.VISIBLE
         }
         // Draw the active card last so it remains above the two visible backing cards.
         previewStack.removeAllViews()
