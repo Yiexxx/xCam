@@ -168,13 +168,20 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val previousTaskId = prefs.getInt("photo_control_task_id", -1)
         val currentTaskId = taskId
+        val launchFlags = intent?.flags ?: 0
+        val returnedToExistingTask =
+            (launchFlags and Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0 ||
+            (launchFlags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
 
-        if (previousTaskId != -1 && previousTaskId != currentTaskId) {
+        if (previousTaskId != -1 && previousTaskId != currentTaskId && !returnedToExistingTask) {
             val previousTaskStillExists = try {
                 getSystemService(ActivityManager::class.java)
                     ?.appTasks
-                    ?.any { task -> task.taskInfo?.id == previousTaskId }
-                    ?: true
+                    ?.any { task ->
+                        // Null means the task info is unavailable; do not treat uncertainty
+                        // as proof that the user dismissed the task card.
+                        task.taskInfo?.let { info -> info.id == previousTaskId } ?: true
+                    } ?: true
             } catch (_: Exception) {
                 // If Android cannot verify the task list, preserve the selection.
                 true
