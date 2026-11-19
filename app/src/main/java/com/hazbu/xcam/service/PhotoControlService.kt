@@ -80,10 +80,8 @@ class PhotoControlService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        if (!notificationStopRequested) {
-            clearSelectedMedia()
-            notifyMediaCleared()
-        }
+        // Do not clear the selection here: normal service shutdowns can happen
+        // while the app is merely backgrounded. Task removal is handled below.
         super.onDestroy()
     }
 
