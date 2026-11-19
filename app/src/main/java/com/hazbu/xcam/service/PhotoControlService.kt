@@ -134,7 +134,7 @@ class PhotoControlService : Service() {
                 .setStyledByProgress(false)
 
             Notification.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification_photo)
                 .setLargeIcon(thumbnail)
                 .setContentTitle(title)
                 .setContentText(text)
