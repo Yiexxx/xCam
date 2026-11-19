@@ -641,6 +641,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             putString(KEY_MEDIA_PATH, activePath)
             putString("media_paths", JSONArray(mediaPaths).toString())
             putInt("current_media_index", currentMediaIndex)
+            putBoolean("photo_control_stopped", false)
             putBoolean(KEY_IS_MIRRORED, isMirrored)
             putInt(KEY_ROTATION_ANGLE, rotationAngle)
         }
