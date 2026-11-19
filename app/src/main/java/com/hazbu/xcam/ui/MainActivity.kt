@@ -150,6 +150,11 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     override fun onDestroy() {
+        // Fallback for devices that finish the launcher task without delivering
+        // Service.onTaskRemoved() when the user dismisses xCam from Recents.
+        if (isFinishing && isTaskRoot && !isChangingConfigurations) {
+            PhotoControlService.clearSelectionAndStop(this)
+        }
         if (mediaClearedReceiverRegistered) {
             unregisterReceiver(mediaClearedReceiver)
             mediaClearedReceiverRegistered = false
