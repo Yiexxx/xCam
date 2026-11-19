@@ -5,10 +5,6 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Framing corners -->
-    <path android:pathData="M29,25h-5c-3.3,0 -6,2.7 -6,6v5 M79,25h5c3.3,0 6,2.7 6,6v5 M18,72v5c0,3.3 2.7,6 6,6h5 M90,72v5c0,3.3 -2.7,6 -6,6h-5"
-        android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:strokeWidth="5.5" android:fillColor="#00000000" android:strokeColor="#48B9FF"/>
     <!-- Camera image plate -->
     <path android:pathData="M33,31h42c3.3,0 6,2.7 6,6v34c0,3.3 -2.7,6 -6,6H33c-3.3,0 -6,-2.7 -6,-6V37c0,-3.3 2.7,-6 6,-6z"
         android:fillColor="#263B75" android:fillAlpha="0.92"/>
