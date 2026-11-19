@@ -109,7 +109,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     ) { isGranted ->
         if (!isGranted) {
             Toast.makeText(this, getString(R.string.toast_notification_permission), Toast.LENGTH_SHORT).show()
-        } else if (mediaPaths.size > 1) {
+        } else if (mediaPaths.isNotEmpty()) {
             syncPhotoControlService()
         }
     }
@@ -711,7 +711,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private fun syncPhotoControlService() {
         val controlsStopped = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             .getBoolean("photo_control_stopped", false)
-        if (mediaPaths.size < 2 || controlsStopped) {
+        if (mediaPaths.isEmpty() || controlsStopped) {
             stopService(Intent(this, PhotoControlService::class.java))
             return
         }
