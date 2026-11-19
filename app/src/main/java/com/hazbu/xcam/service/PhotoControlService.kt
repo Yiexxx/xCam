@@ -63,15 +63,17 @@ class PhotoControlService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        // Do not clear selected media here: normal service shutdown/restart
-        // must not erase the user's selection. Recents dismissal is handled
-        // explicitly by onTaskRemoved().
+        // With stopWithTask=true, Android stops this service when its task is
+        // removed from Recents. Clear persisted selection here as the primary
+        // cleanup path. This is idempotent with onTaskRemoved().
+        clearSelectedMedia()
+        notifyMediaCleared()
         super.onDestroy()
     }
 
