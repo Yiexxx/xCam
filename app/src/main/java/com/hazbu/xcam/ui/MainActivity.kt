@@ -379,6 +379,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         updateMediaCounter()
         updatePreviewTransform()
         loadTelemetryUI()
+        syncPhotoControlService()
     }
 
     private fun loadTelemetryUI() {
@@ -620,6 +621,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             putString(KEY_MEDIA_PATH, path)
             putString("media_paths", JSONArray(mediaPaths).toString())
             putInt("current_media_index", currentMediaIndex)
+            putBoolean("photo_control_stopped", false)
             putBoolean(KEY_IS_MIRRORED, isMirrored)
             putInt(KEY_ROTATION_ANGLE, rotationAngle)
         }
@@ -655,6 +657,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit {
             putString(KEY_MEDIA_PATH, path)
             putInt("current_media_index", currentMediaIndex)
+            putBoolean("photo_control_stopped", false)
         }
         updatePreview(path)
         updateMediaCounter()
@@ -663,7 +666,9 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     private fun syncPhotoControlService() {
-        if (mediaPaths.size < 2) {
+        val controlsStopped = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getBoolean("photo_control_stopped", false)
+        if (mediaPaths.size < 2 || controlsStopped) {
             stopService(Intent(this, PhotoControlService::class.java))
             return
         }
