@@ -1,6 +1,6 @@
 name: Android Release APK
 
-# Release version: 1.0.0 (versionCode 1) - visible stacked photo layers
+# Release version: 1.0.0 (versionCode 1) - clean single-image preview
 
 on:
   push:
