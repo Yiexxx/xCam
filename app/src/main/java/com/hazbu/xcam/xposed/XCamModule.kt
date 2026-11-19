@@ -212,7 +212,7 @@ class XCamModule : XposedModule() {
     override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
         super.onPackageReady(param)
         val processName = SystemUtils.getProcessNameStrict()
-        if (param.packageName == "com.hazbu.xcam") {
+        if (param.packageName == "com.yie.camx") {
             hookManagerApp(param)
             return
         }
