@@ -61,7 +61,7 @@ class PhotoControlService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -76,6 +76,7 @@ class PhotoControlService : Service() {
         clearSelectedMedia()
         notifyMediaCleared()
         stopForegroundAndRemove()
+        getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
         stopSelf()
         super.onTaskRemoved(rootIntent)
     }
@@ -163,14 +164,14 @@ class PhotoControlService : Service() {
                 .addAction(
                     Notification.Action.Builder(
                         android.graphics.drawable.Icon.createWithResource(this, previousIcon),
-                        "",
+                        "\u00A0",
                         previous
                     ).build()
                 )
                 .addAction(
                     Notification.Action.Builder(
                         android.graphics.drawable.Icon.createWithResource(this, nextIcon),
-                        "",
+                        "\u00A0",
                         next
                     ).build()
                 )
@@ -191,8 +192,8 @@ class PhotoControlService : Service() {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentIntent)
-                .addAction(previousIcon, "", previous)
-                .addAction(nextIcon, "", next)
+                .addAction(previousIcon, "\u00A0", previous)
+                .addAction(nextIcon, "\u00A0", next)
                 .build()
         }
     }
