@@ -1,6 +1,7 @@
 package com.hazbu.xcam.ui
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -137,6 +138,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         XposedServiceHelper.registerListener(this)
         setupWindowInsets()
         setupUI()
+        clearSelectionIfPreviousTaskWasRemoved()
         loadSettings()
         updateModuleStatusUI()
         ContextCompat.registerReceiver(
@@ -154,6 +156,37 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             mediaClearedReceiverRegistered = false
         }
         super.onDestroy()
+    }
+
+
+    /**
+     * Home keeps the existing task and its ID. When the user dismisses the
+     * task from Recents, the next launcher start gets a new task ID. Verify
+     * that the previous task is actually gone before clearing selected media.
+     */
+    private fun clearSelectionIfPreviousTaskWasRemoved() {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val previousTaskId = prefs.getInt("photo_control_task_id", -1)
+        val currentTaskId = taskId
+
+        if (previousTaskId != -1 && previousTaskId != currentTaskId) {
+            val previousTaskStillExists = try {
+                getSystemService(ActivityManager::class.java)
+                    ?.appTasks
+                    ?.any { task ->
+                        task.taskInfo?.let { info -> info.id == previousTaskId } ?: true
+                    } ?: true
+            } catch (_: Exception) {
+                // If Android cannot verify the task list, preserve the selection.
+                true
+            }
+
+            if (!previousTaskStillExists) {
+                PhotoControlService.clearSelectionAndStop(this)
+            }
+        }
+
+        prefs.edit().putInt("photo_control_task_id", currentTaskId).commit()
     }
 
     override fun onResume() {
