@@ -1,6 +1,7 @@
 name: Android Release APK
 
 # Release version: 1.0.0 (versionCode 1) - clean single-image preview
+# Re-run release after the preview XML build fix.
 
 on:
   push:
