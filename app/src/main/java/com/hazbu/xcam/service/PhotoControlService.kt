@@ -191,8 +191,8 @@ class PhotoControlService : Service() {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentIntent)
-                .addAction(previousIcon, "◀", previous)
-                .addAction(nextIcon, "▶", next)
+                .addAction(previousIcon, "上一张", previous)
+                .addAction(nextIcon, "下一张", next)
                 .build()
         }
     }
