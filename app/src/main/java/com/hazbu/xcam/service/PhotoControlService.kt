@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
 import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.os.IBinder
@@ -24,14 +23,11 @@ import java.io.File
 
 class PhotoControlService : Service() {
 
-    private var notificationStopRequested = false
-
     companion object {
         const val ACTION_START = "com.hazbu.xcam.action.PHOTO_CONTROL_START"
         const val ACTION_MEDIA_CLEARED = "com.hazbu.xcam.action.PHOTO_MEDIA_CLEARED"
         private const val ACTION_PREVIOUS = "com.hazbu.xcam.action.PHOTO_CONTROL_PREVIOUS"
         private const val ACTION_NEXT = "com.hazbu.xcam.action.PHOTO_CONTROL_NEXT"
-        private const val ACTION_STOP = "com.hazbu.xcam.action.PHOTO_CONTROL_STOP"
         private const val CHANNEL_ID = "xcam_photo_controls"
         private const val NOTIFICATION_ID = 4102
     }
@@ -45,15 +41,6 @@ class PhotoControlService : Service() {
         when (intent?.action) {
             ACTION_PREVIOUS -> movePhoto(-1)
             ACTION_NEXT -> movePhoto(1)
-            ACTION_STOP -> {
-                notificationStopRequested = true
-                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                    .putBoolean("photo_control_stopped", true)
-                    .apply()
-                stopForegroundAndRemove()
-                stopSelf()
-                return START_NOT_STICKY
-            }
         }
 
         val paths = readMediaPaths()
@@ -145,7 +132,7 @@ class PhotoControlService : Service() {
     }
 
     private fun buildNotification(paths: List<String>, index: Int): Notification {
-        val title = "xCam 照片控制"
+        val title = "Cam照片控制"
         val text = "第 ${index + 1} / ${paths.size} 张照片"
         val thumbnail = loadThumbnail(paths[index])
         val contentIntent = PendingIntent.getActivity(
@@ -159,30 +146,34 @@ class PhotoControlService : Service() {
 
         val previous = actionPendingIntent(ACTION_PREVIOUS, 1)
         val next = actionPendingIntent(ACTION_NEXT, 2)
-        val stop = actionPendingIntent(ACTION_STOP, 3)
+        val previousIcon = android.R.drawable.ic_media_previous
+        val nextIcon = android.R.drawable.ic_media_next
 
-        val notification = if (Build.VERSION.SDK_INT >= 36) {
-            val progressStyle = Notification.ProgressStyle()
-                .setProgressSegments(
-                    listOf(Notification.ProgressStyle.Segment(paths.size).setColor(Color.WHITE))
-                )
-                .setProgress(index)
-                .setStyledByProgress(false)
-
+        return if (Build.VERSION.SDK_INT >= 36) {
             Notification.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification_photo)
                 .setLargeIcon(thumbnail)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setStyle(progressStyle)
-                .setCategory(Notification.CATEGORY_PROGRESS)
+                .setCategory(Notification.CATEGORY_SERVICE)
                 .setVisibility(Notification.VISIBILITY_PRIVATE)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentIntent)
-                .addAction(android.R.drawable.ic_media_previous, "上一张", previous)
-                .addAction(android.R.drawable.ic_media_next, "下一张", next)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止", stop)
+                .addAction(
+                    Notification.Action.Builder(
+                        android.graphics.drawable.Icon.createWithResource(this, previousIcon),
+                        "",
+                        previous
+                    ).build()
+                )
+                .addAction(
+                    Notification.Action.Builder(
+                        android.graphics.drawable.Icon.createWithResource(this, nextIcon),
+                        "",
+                        next
+                    ).build()
+                )
                 .build()
                 .apply {
                     extras.putBoolean("android.requestPromotedOngoing", true)
@@ -194,18 +185,16 @@ class PhotoControlService : Service() {
                 .setContentTitle(title)
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+                .setCategory(NotificationCompat.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentIntent)
-                .addAction(android.R.drawable.ic_media_previous, "上一张", previous)
-                .addAction(android.R.drawable.ic_media_next, "下一张", next)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止", stop)
+                .addAction(previousIcon, "", previous)
+                .addAction(nextIcon, "", next)
                 .build()
         }
-        return notification
     }
 
     private fun actionPendingIntent(action: String, requestCode: Int): PendingIntent {
@@ -241,7 +230,7 @@ class PhotoControlService : Service() {
             val manager = getSystemService(NotificationManager::class.java)
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "照片切换控制",
+                "Cam照片控制",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "在后台快速切换 xCam 当前使用的照片"
