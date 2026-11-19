@@ -176,7 +176,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             val previousTaskStillExists = try {
                 getSystemService(ActivityManager::class.java)
                     .appTasks
-                    .any { it.taskInfo.id == previousTaskId }
+                    .any { task -> task.taskInfo?.let { info -> info.id == previousTaskId } ?: true }
             } catch (_: Exception) {
                 false
             }
