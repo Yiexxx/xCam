@@ -150,11 +150,28 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     override fun onDestroy() {
+        if (isFinishing && isTaskRoot && !isChangingConfigurations) {
+            clearMediaSelectionOnExit()
+        }
         if (mediaClearedReceiverRegistered) {
             unregisterReceiver(mediaClearedReceiver)
             mediaClearedReceiverRegistered = false
         }
         super.onDestroy()
+    }
+
+    private fun clearMediaSelectionOnExit() {
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit {
+            remove(KEY_MEDIA_PATH)
+            putString("media_paths", JSONArray().toString())
+            putInt("current_media_index", 0)
+            putBoolean("photo_control_stopped", true)
+            putBoolean(KEY_IS_MIRRORED, false)
+            putInt(KEY_ROTATION_ANGLE, 0)
+        }
+        filesDir.listFiles { _, name -> name.startsWith(VIRTUAL_PREFIX) }
+            ?.forEach { it.delete() }
+        stopService(Intent(this, PhotoControlService::class.java))
     }
 
     override fun onResume() {
