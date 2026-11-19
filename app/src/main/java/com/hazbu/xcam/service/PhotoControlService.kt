@@ -49,7 +49,7 @@ class PhotoControlService : Service() {
         if (paths.isEmpty()) {
             stopForegroundAndRemove()
             stopSelf()
-            return START_STICKY
+            return START_NOT_STICKY
         }
 
         val index = readCurrentIndex(paths.size)
@@ -63,7 +63,7 @@ class PhotoControlService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
