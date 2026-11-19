@@ -600,7 +600,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private fun updatePreview(path: String) {
         val valid = path.isNotEmpty() && File(path).exists() && setPreviewImage(ivPreview, path)
         tvNoPreview.visibility = if (valid) View.GONE else View.VISIBLE
-        btnDeleteMedia.visibility = if (valid) View.VISIBLE else View.GONE
+        btnDeleteMedia.visibility = View.VISIBLE
         if (!valid) ivPreview.setImageDrawable(null)
         updatePreviewStackImages()
         resetPreviewCardPositions()
