@@ -44,7 +44,7 @@
             android:name=".service.PhotoControlService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            android:stopWithTask="true">
+            android:stopWithTask="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Persistent notification controls for switching the user's selected camera photos in the background." />
