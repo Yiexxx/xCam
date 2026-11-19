@@ -146,8 +146,8 @@ class PhotoControlService : Service() {
 
         val previous = actionPendingIntent(ACTION_PREVIOUS, 1)
         val next = actionPendingIntent(ACTION_NEXT, 2)
-        val previousIcon = android.R.drawable.ic_media_previous
-        val nextIcon = android.R.drawable.ic_media_next
+        val previousIcon = R.drawable.ic_notification_previous
+        val nextIcon = R.drawable.ic_notification_next
 
         return if (Build.VERSION.SDK_INT >= 36) {
             Notification.Builder(this, CHANNEL_ID)
