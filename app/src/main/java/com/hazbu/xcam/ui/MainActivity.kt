@@ -64,8 +64,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private lateinit var btnSelectVideo: MaterialButton
     private lateinit var tvModuleStatus: TextView
     private lateinit var cardModuleStatus: com.google.android.material.card.MaterialCardView
-    private lateinit var cardScopedApps: com.google.android.material.card.MaterialCardView
-    private lateinit var layoutScopedApps: LinearLayout
 
     private lateinit var switchCaptureNotif: MaterialSwitch
     private lateinit var tvPipelineEmpty: TextView
@@ -141,14 +139,12 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             val activeColor = MaterialColors.getColor(tvModuleStatus, androidx.appcompat.R.attr.colorPrimary)
             tvModuleStatus.setTextColor(activeColor)
             cardModuleStatus.strokeColor = activeColor
-            refreshLSPosedScope()
         } else {
             tvModuleStatus.text = getString(R.string.status_module_inactive)
             val inactiveColor = MaterialColors.getColor(tvModuleStatus, com.google.android.material.R.attr.colorOnSurfaceVariant)
             val strokeColor = MaterialColors.getColor(tvModuleStatus, com.google.android.material.R.attr.colorOutline)
             tvModuleStatus.setTextColor(inactiveColor)
             cardModuleStatus.strokeColor = strokeColor
-            cardScopedApps.visibility = View.GONE
         }
     }
 
@@ -180,8 +176,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         btnSelectVideo = findViewById(R.id.btn_select_video)
         tvModuleStatus = findViewById(R.id.tv_module_status)
         cardModuleStatus = findViewById(R.id.card_module_status)
-        cardScopedApps = findViewById(R.id.card_scoped_apps)
-        layoutScopedApps = findViewById(R.id.layout_scoped_apps)
 
         switchCaptureNotif = findViewById(R.id.switch_capture_notif)
         tvPipelineEmpty = findViewById(R.id.tv_pipeline_empty)
@@ -421,39 +415,4 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     private fun checkSelfActive(): Boolean = false
-
-    private fun getOfficialScope(): List<String> {
-        return try {
-            mXposedService?.scope ?: emptyList()
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun refreshLSPosedScope() {
-        layoutScopedApps.removeAllViews()
-        val officialScope = getOfficialScope().filter { it != packageName }
-        if (officialScope.isNotEmpty()) {
-            officialScope.forEach { addAppIconToLayout(it) }
-            cardScopedApps.visibility = View.VISIBLE
-        } else {
-            cardScopedApps.visibility = View.GONE
-        }
-    }
-
-    private fun addAppIconToLayout(pkgName: String) {
-        try {
-            val icon = packageManager.getApplicationIcon(pkgName)
-            val size = (40 * resources.displayMetrics.density).toInt()
-            val imageView = ImageView(this).apply {
-                val params = LinearLayout.LayoutParams(size, size)
-                params.setMargins(0, 0, 16, 0)
-                layoutParams = params
-                setImageDrawable(icon)
-                contentDescription = pkgName
-                setOnClickListener { Toast.makeText(this@MainActivity, pkgName, Toast.LENGTH_SHORT).show() }
-            }
-            layoutScopedApps.addView(imageView)
-        } catch (_: Exception) {}
-    }
 }
