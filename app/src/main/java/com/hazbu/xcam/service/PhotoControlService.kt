@@ -44,8 +44,9 @@ class PhotoControlService : Service() {
             ACTION_PREVIOUS -> movePhoto(-1)
             ACTION_NEXT -> movePhoto(1)
             ACTION_STOP -> {
-                clearSelectedMedia()
-                notifyMediaCleared()
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                    .putBoolean("photo_control_stopped", true)
+                    .apply()
                 stopForegroundAndRemove()
                 stopSelf()
                 return START_NOT_STICKY
