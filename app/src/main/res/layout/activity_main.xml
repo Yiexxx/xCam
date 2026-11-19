@@ -118,15 +118,12 @@
                     android:gravity="center"
                     android:paddingBottom="16dp">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_delete_media"
-                        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        app:icon="@android:drawable/ic_menu_close_clear_cancel"
-                        android:contentDescription="@string/desc_remove_media"
-                        android:visibility="gone" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingBottom="16dp">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_rotate_left"
@@ -136,6 +133,15 @@
                         android:layout_marginEnd="8dp"
                         app:icon="@drawable/ic_rotate_left"
                         android:contentDescription="@string/desc_rotate_left" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_delete_media"
+                        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        app:icon="@android:drawable/ic_menu_close_clear_cancel"
+                        android:contentDescription="@string/desc_remove_media" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_mirror"
@@ -154,6 +160,7 @@
                         app:icon="@drawable/ic_rotate_right"
                         android:contentDescription="@string/desc_rotate_right" />
                 </LinearLayout>
+ </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_select_video"
