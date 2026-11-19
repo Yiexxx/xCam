@@ -1,10 +1,12 @@
 package com.hazbu.xcam.ui
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -93,6 +95,14 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private var touchStartY = 0f
     private var mXposedService: XposedService? = null
     private var photoNotificationPermissionRequested = false
+    private var mediaClearedReceiverRegistered = false
+    private val mediaClearedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == PhotoControlService.ACTION_MEDIA_CLEARED) {
+                loadSettings()
+            }
+        }
+    }
 
     private val notifPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -130,6 +140,21 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         setupUI()
         loadSettings()
         updateModuleStatusUI()
+        ContextCompat.registerReceiver(
+            this,
+            mediaClearedReceiver,
+            IntentFilter(PhotoControlService.ACTION_MEDIA_CLEARED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        mediaClearedReceiverRegistered = true
+    }
+
+    override fun onDestroy() {
+        if (mediaClearedReceiverRegistered) {
+            unregisterReceiver(mediaClearedReceiver)
+            mediaClearedReceiverRegistered = false
+        }
+        super.onDestroy()
     }
 
     override fun onResume() {
