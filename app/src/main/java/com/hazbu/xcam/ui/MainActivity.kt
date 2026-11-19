@@ -28,6 +28,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -138,6 +139,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         XposedServiceHelper.registerListener(this)
         setupWindowInsets()
         setupUI()
+        setupRootBackNavigation()
         clearSelectionIfPreviousTaskWasRemoved()
         loadSettings()
         updateModuleStatusUI()
@@ -158,6 +160,25 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         super.onDestroy()
     }
 
+
+
+    /**
+     * On the launcher root screen, an edge-swipe Back should behave like Home:
+     * keep the task in Recents and move it to the background instead of
+     * finishing the root activity and stopping the photo service.
+     */
+    private fun setupRootBackNavigation() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (isTaskRoot) {
+                    moveTaskToBack(true)
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+    }
 
     /**
      * Home keeps the existing task and its ID. When the user dismisses the
