@@ -24,6 +24,8 @@ import java.io.File
 
 class PhotoControlService : Service() {
 
+    private var notificationStopRequested = false
+
     companion object {
         const val ACTION_START = "com.hazbu.xcam.action.PHOTO_CONTROL_START"
         const val ACTION_MEDIA_CLEARED = "com.hazbu.xcam.action.PHOTO_MEDIA_CLEARED"
@@ -44,6 +46,7 @@ class PhotoControlService : Service() {
             ACTION_PREVIOUS -> movePhoto(-1)
             ACTION_NEXT -> movePhoto(1)
             ACTION_STOP -> {
+                notificationStopRequested = true
                 getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
                     .putBoolean("photo_control_stopped", true)
                     .apply()
@@ -75,6 +78,14 @@ class PhotoControlService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        if (!notificationStopRequested) {
+            clearSelectedMedia()
+            notifyMediaCleared()
+        }
+        super.onDestroy()
+    }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         clearSelectedMedia()
