@@ -15,6 +15,8 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.View
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -45,6 +47,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.json.JSONArray
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
 
@@ -57,6 +60,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
 
     private lateinit var ivPreview: ImageView
     private lateinit var tvNoPreview: TextView
+    private lateinit var tvMediaCounter: TextView
     private lateinit var btnDeleteMedia: MaterialButton
     private lateinit var btnMirror: MaterialButton
     private lateinit var btnRotateLeft: MaterialButton
@@ -76,6 +80,9 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
 
     private var isMirrored = false
     private var rotationAngle = 0
+    private var mediaPaths: MutableList<String> = mutableListOf()
+    private var currentMediaIndex = 0
+    private lateinit var mediaGestureDetector: GestureDetector
     private var mXposedService: XposedService? = null
 
     private val notifPermissionLauncher = registerForActivityResult(
@@ -90,10 +97,15 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            val data: Intent? = result.data
-            data?.data?.let { uri ->
-                copyMediaToInternal(uri)
+            val data = result.data
+            val selectedUris = mutableListOf<Uri>()
+            data?.clipData?.let { clip ->
+                for (index in 0 until clip.itemCount) {
+                    clip.getItemAt(index).uri?.let { selectedUris.add(it) }
+                }
             }
+            data?.data?.let { if (!selectedUris.contains(it)) selectedUris.add(it) }
+            if (selectedUris.isNotEmpty()) importSelectedMedia(selectedUris)
         }
     }
 
@@ -169,6 +181,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         setupTitleSpannable(tvTitle)
         ivPreview = findViewById(R.id.iv_preview)
         tvNoPreview = findViewById(R.id.tv_no_preview)
+        tvMediaCounter = findViewById(R.id.tv_media_counter)
         btnDeleteMedia = findViewById(R.id.btn_delete_media)
         btnMirror = findViewById(R.id.btn_mirror)
         btnRotateLeft = findViewById(R.id.btn_rotate_left)
@@ -250,77 +263,128 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             updatePreviewTransform()
         }
         btnDeleteMedia.setOnClickListener { deleteMedia() }
+        mediaGestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (e1 == null || mediaPaths.size < 2) return false
+                val deltaX = e2.x - e1.x
+                if (kotlin.math.abs(deltaX) < 70f || kotlin.math.abs(velocityX) < 100f) return false
+                showMediaAt(currentMediaIndex + if (deltaX < 0) 1 else -1)
+                return true
+            }
+        })
+        ivPreview.setOnTouchListener { _, event ->
+            mediaGestureDetector.onTouchEvent(event)
+            true
+        }
         btnSelectVideo.setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "*/*"
                 putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
             videoPickerLauncher.launch(intent)
         }
     }
 
-    private fun copyMediaToInternal(uri: Uri) {
+    private fun importSelectedMedia(uris: List<Uri>) {
+        val mimeTypes = uris.map { contentResolver.getType(it) ?: "" }
+        val hasVideo = mimeTypes.any { it.startsWith("video/") }
+        if (hasVideo && uris.size > 1) {
+            Toast.makeText(this, R.string.toast_select_photos_or_one_video, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        filesDir.listFiles { _, name -> name.startsWith(VIRTUAL_PREFIX) }?.forEach { it.delete() }
+        mediaPaths.clear()
+        currentMediaIndex = 0
+
+        if (hasVideo) {
+            copyVideoToInternal(uris.first(), mimeTypes.first())
+        } else {
+            Toast.makeText(this, R.string.toast_converting_image, Toast.LENGTH_SHORT).show()
+            convertSelectedImages(uris, 0, mutableListOf())
+        }
+    }
+
+    private fun copyVideoToInternal(uri: Uri, mimeType: String) {
         try {
-            val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
-            val isImage = mimeType.startsWith("image/")
-            val isVideo = mimeType.startsWith("video/")
-
-            if (!isImage && !isVideo) {
-                Toast.makeText(this, getString(R.string.toast_invalid_media), Toast.LENGTH_LONG).show()
-                return
-            }
-            
-            filesDir.listFiles { _, name -> name.startsWith(VIRTUAL_PREFIX) }?.forEach { it.delete() }
-
             val extension = android.webkit.MimeTypeMap.getSingleton()
-                .getExtensionFromMimeType(mimeType) ?: "bin"
+                .getExtensionFromMimeType(mimeType) ?: "mp4"
+            val internalFile = File(filesDir, VIRTUAL_PREFIX + extension)
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(internalFile).use { output -> input.copyTo(output) }
+            } ?: throw IllegalStateException("无法读取所选视频")
+            saveMediaPath(internalFile.absolutePath)
+            Toast.makeText(this, R.string.toast_media_imported, Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, getString(R.string.toast_media_import_failed, e.message), Toast.LENGTH_LONG).show()
+        }
+    }
 
-            if (isImage) {
-                val internalImage = File(filesDir, VIRTUAL_PREFIX + extension)
-                contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(internalImage).use { output -> input.copyTo(output) }
-                }
-                
-                val outputVideo = File(filesDir, DEFAULT_VIDEO_NAME)
-                Toast.makeText(this, getString(R.string.toast_converting_image), Toast.LENGTH_SHORT).show()
-                
-                com.hazbu.xcam.utils.MediaConverter.convertImageToMp4(
-                    this, Uri.fromFile(internalImage), outputVideo
-                ) { success ->
-                    runOnUiThread {
-                        internalImage.delete()
-                        if (success) {
-                            saveMediaPath(outputVideo.absolutePath)
-                            Toast.makeText(this, R.string.toast_media_imported, Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this, getString(R.string.toast_conversion_failed), Toast.LENGTH_SHORT).show()
-                        }
+    private fun convertSelectedImages(uris: List<Uri>, index: Int, convertedPaths: MutableList<String>) {
+        if (index >= uris.size) {
+            saveMediaPaths(convertedPaths)
+            Toast.makeText(this, getString(R.string.toast_photos_imported, convertedPaths.size), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        try {
+            val uri = uris[index]
+            val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
+            if (!mimeType.startsWith("image/")) throw IllegalArgumentException("仅支持选择照片")
+            val extension = android.webkit.MimeTypeMap.getSingleton()
+                .getExtensionFromMimeType(mimeType) ?: "jpg"
+            val imageFile = File(filesDir, "${VIRTUAL_PREFIX}image_${index}.${extension}")
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(imageFile).use { output -> input.copyTo(output) }
+            } ?: throw IllegalStateException("无法读取第 ${index + 1} 张照片")
+
+            val outputVideo = File(filesDir, "${VIRTUAL_PREFIX}${index}.mp4")
+            com.hazbu.xcam.utils.MediaConverter.convertImageToMp4(
+                this, Uri.fromFile(imageFile), outputVideo
+            ) { success ->
+                runOnUiThread {
+                    imageFile.delete()
+                    if (success) {
+                        convertedPaths.add(outputVideo.absolutePath)
+                        convertSelectedImages(uris, index + 1, convertedPaths)
+                    } else {
+                        convertedPaths.forEach { File(it).delete() }
+                        filesDir.listFiles { _, name -> name.startsWith(VIRTUAL_PREFIX) }?.forEach { it.delete() }
+                        Toast.makeText(this, R.string.toast_conversion_failed, Toast.LENGTH_LONG).show()
                     }
                 }
-            } else {
-                val internalFile = File(filesDir, VIRTUAL_PREFIX + extension)
-                contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(internalFile).use { output ->
-                        input.copyTo(output)
-                    }
-                }
-                saveMediaPath(internalFile.absolutePath)
-                Toast.makeText(this, R.string.toast_media_imported, Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            val errorMsg = getString(R.string.toast_media_import_failed, e.message)
-            Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
+            filesDir.listFiles { _, name -> name.startsWith(VIRTUAL_PREFIX) }?.forEach { it.delete() }
+            Toast.makeText(this, getString(R.string.toast_media_import_failed, e.message), Toast.LENGTH_LONG).show()
         }
     }
 
     private fun loadSettings() {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val mediaPath = prefs.getString(KEY_MEDIA_PATH, "") ?: ""
+        val savedPaths = prefs.getString("media_paths", null)
+        mediaPaths = try {
+            if (savedPaths.isNullOrBlank()) mutableListOf()
+            else JSONArray(savedPaths).let { array ->
+                MutableList(array.length()) { array.getString(it) }.filter { File(it).exists() }.toMutableList()
+            }
+        } catch (_: Exception) { mutableListOf() }
+        currentMediaIndex = prefs.getInt("current_media_index", 0).coerceIn(0, (mediaPaths.size - 1).coerceAtLeast(0))
         isMirrored = prefs.getBoolean(KEY_IS_MIRRORED, false)
         rotationAngle = prefs.getInt(KEY_ROTATION_ANGLE, 0)
         switchCaptureNotif.isChecked = prefs.getBoolean(KEY_ENABLE_CAPTURE_NOTIF, true)
-        updatePreview(mediaPath)
+        updatePreview(mediaPaths.getOrNull(currentMediaIndex) ?: mediaPath)
+        updateMediaCounter()
         updatePreviewTransform()
         loadTelemetryUI()
     }
@@ -391,13 +455,57 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private fun saveMediaPath(path: String) {
         isMirrored = false
         rotationAngle = 0
+        mediaPaths = if (path.isBlank()) mutableListOf() else mutableListOf(path)
+        currentMediaIndex = 0
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit {
             putString(KEY_MEDIA_PATH, path)
+            putString("media_paths", JSONArray(mediaPaths).toString())
+            putInt("current_media_index", currentMediaIndex)
             putBoolean(KEY_IS_MIRRORED, isMirrored)
             putInt(KEY_ROTATION_ANGLE, rotationAngle)
         }
         updatePreview(path)
+        updateMediaCounter()
         updatePreviewTransform()
+    }
+
+    private fun saveMediaPaths(paths: List<String>) {
+        mediaPaths = paths.toMutableList()
+        currentMediaIndex = 0
+        isMirrored = false
+        rotationAngle = 0
+        val activePath = mediaPaths.firstOrNull().orEmpty()
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit {
+            putString(KEY_MEDIA_PATH, activePath)
+            putString("media_paths", JSONArray(mediaPaths).toString())
+            putInt("current_media_index", currentMediaIndex)
+            putBoolean(KEY_IS_MIRRORED, isMirrored)
+            putInt(KEY_ROTATION_ANGLE, rotationAngle)
+        }
+        updatePreview(activePath)
+        updateMediaCounter()
+        updatePreviewTransform()
+    }
+
+    private fun showMediaAt(index: Int) {
+        if (index !in mediaPaths.indices) return
+        currentMediaIndex = index
+        val path = mediaPaths[index]
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit {
+            putString(KEY_MEDIA_PATH, path)
+            putInt("current_media_index", currentMediaIndex)
+        }
+        updatePreview(path)
+        updateMediaCounter()
+    }
+
+    private fun updateMediaCounter() {
+        if (mediaPaths.size > 1) {
+            tvMediaCounter.text = getString(R.string.label_media_counter, currentMediaIndex + 1, mediaPaths.size)
+            tvMediaCounter.visibility = View.VISIBLE
+        } else {
+            tvMediaCounter.visibility = View.GONE
+        }
     }
 
     private fun deleteMedia() {
