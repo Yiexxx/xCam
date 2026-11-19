@@ -173,9 +173,8 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             val previousTaskStillExists = try {
                 getSystemService(ActivityManager::class.java)
                     ?.appTasks
-                    ?.any { task ->
-                        task.taskInfo?.let { info -> info.id == previousTaskId } ?: true
-                    } ?: true
+                    ?.any { task -> task.taskInfo?.id == previousTaskId }
+                    ?: true
             } catch (_: Exception) {
                 // If Android cannot verify the task list, preserve the selection.
                 true
