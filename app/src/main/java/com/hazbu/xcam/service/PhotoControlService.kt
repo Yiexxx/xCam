@@ -13,6 +13,7 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.os.IBinder
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import com.hazbu.xcam.R
 import com.hazbu.xcam.data.Constants.KEY_MEDIA_PATH
@@ -30,6 +31,22 @@ class PhotoControlService : Service() {
         private const val ACTION_NEXT = "com.hazbu.xcam.action.PHOTO_CONTROL_NEXT"
         private const val CHANNEL_ID = "xcam_photo_controls"
         private const val NOTIFICATION_ID = 4102
+
+        fun clearSelectionAndStop(context: Context) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .remove(KEY_MEDIA_PATH)
+                .putString("media_paths", JSONArray().toString())
+                .putInt("current_media_index", 0)
+                .putBoolean("photo_control_stopped", true)
+                .putBoolean(com.hazbu.xcam.data.Constants.KEY_IS_MIRRORED, false)
+                .putInt(com.hazbu.xcam.data.Constants.KEY_ROTATION_ANGLE, 0)
+                .commit()
+            context.filesDir.listFiles { _, name -> name.startsWith("virtual.") }
+                ?.forEach { it.delete() }
+            context.stopService(Intent(context, PhotoControlService::class.java))
+            context.getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
+            context.sendBroadcast(Intent(ACTION_MEDIA_CLEARED).setPackage(context.packageName))
+        }
     }
 
     override fun onCreate() {
@@ -73,30 +90,10 @@ class PhotoControlService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        clearSelectedMedia()
-        notifyMediaCleared()
+        clearSelectionAndStop(this)
         stopForegroundAndRemove()
-        getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
         stopSelf()
         super.onTaskRemoved(rootIntent)
-    }
-
-    private fun clearSelectedMedia() {
-        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .remove(KEY_MEDIA_PATH)
-            .putString("media_paths", JSONArray().toString())
-            .putInt("current_media_index", 0)
-            .putBoolean("photo_control_stopped", true)
-            .putBoolean(com.hazbu.xcam.data.Constants.KEY_IS_MIRRORED, false)
-            .putInt(com.hazbu.xcam.data.Constants.KEY_ROTATION_ANGLE, 0)
-            .commit()
-
-        filesDir.listFiles { _, name -> name.startsWith("virtual.") }
-            ?.forEach { it.delete() }
-    }
-
-    private fun notifyMediaCleared() {
-        sendBroadcast(Intent(ACTION_MEDIA_CLEARED).setPackage(packageName))
     }
 
     private fun movePhoto(direction: Int) {
@@ -145,10 +142,14 @@ class PhotoControlService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val previous = actionPendingIntent(ACTION_PREVIOUS, 1)
-        val next = actionPendingIntent(ACTION_NEXT, 2)
-        val previousIcon = R.drawable.ic_notification_previous
-        val nextIcon = R.drawable.ic_notification_next
+        val customContent = RemoteViews(packageName, R.layout.notification_photo_controls).apply {
+            setTextViewText(R.id.notification_title, title)
+            setTextViewText(R.id.notification_text, text)
+            setImageViewResource(R.id.notification_previous, R.drawable.ic_notification_previous)
+            setImageViewResource(R.id.notification_next, R.drawable.ic_notification_next)
+            setOnClickPendingIntent(R.id.notification_previous, actionPendingIntent(ACTION_PREVIOUS, 1))
+            setOnClickPendingIntent(R.id.notification_next, actionPendingIntent(ACTION_NEXT, 2))
+        }
 
         return if (Build.VERSION.SDK_INT >= 36) {
             Notification.Builder(this, CHANNEL_ID)
@@ -156,44 +157,31 @@ class PhotoControlService : Service() {
                 .setLargeIcon(thumbnail)
                 .setContentTitle(title)
                 .setContentText(text)
+                .setCustomContentView(customContent)
+                .setCustomBigContentView(customContent)
+                .setStyle(Notification.DecoratedCustomViewStyle())
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setVisibility(Notification.VISIBILITY_PRIVATE)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentIntent)
-                .addAction(
-                    Notification.Action.Builder(
-                        android.graphics.drawable.Icon.createWithResource(this, previousIcon),
-                        "\u00A0",
-                        previous
-                    ).build()
-                )
-                .addAction(
-                    Notification.Action.Builder(
-                        android.graphics.drawable.Icon.createWithResource(this, nextIcon),
-                        "\u00A0",
-                        next
-                    ).build()
-                )
                 .build()
-                .apply {
-                    extras.putBoolean("android.requestPromotedOngoing", true)
-                }
+                .apply { extras.putBoolean("android.requestPromotedOngoing", true) }
         } else {
             NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification_photo)
                 .setLargeIcon(thumbnail)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setCustomContentView(customContent)
+                .setCustomBigContentView(customContent)
+                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentIntent)
-                .addAction(previousIcon, "\u00A0", previous)
-                .addAction(nextIcon, "\u00A0", next)
                 .build()
         }
     }
