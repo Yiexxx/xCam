@@ -38,6 +38,7 @@ import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.hazbu.xcam.R
+import com.hazbu.xcam.service.PhotoControlService
 import com.hazbu.xcam.data.Constants.KEY_ENABLE_CAPTURE_NOTIF
 import com.hazbu.xcam.data.Constants.KEY_IS_MIRRORED
 import com.hazbu.xcam.data.Constants.KEY_LATEST_PIPELINE_APP
@@ -91,12 +92,15 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private var touchStartX = 0f
     private var touchStartY = 0f
     private var mXposedService: XposedService? = null
+    private var photoNotificationPermissionRequested = false
 
     private val notifPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (!isGranted) {
             Toast.makeText(this, getString(R.string.toast_notification_permission), Toast.LENGTH_SHORT).show()
+        } else if (mediaPaths.size > 1) {
+            syncPhotoControlService()
         }
     }
 
@@ -622,6 +626,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         updatePreview(path)
         updateMediaCounter()
         updatePreviewTransform()
+        syncPhotoControlService()
     }
 
     private fun saveMediaPaths(paths: List<String>) {
@@ -640,6 +645,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         updatePreview(activePath)
         updateMediaCounter()
         updatePreviewTransform()
+        syncPhotoControlService()
     }
 
     private fun showMediaAt(index: Int) {
@@ -653,6 +659,29 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         updatePreview(path)
         updateMediaCounter()
         updatePreviewTransform()
+        syncPhotoControlService()
+    }
+
+    private fun syncPhotoControlService() {
+        if (mediaPaths.size < 2) {
+            stopService(Intent(this, PhotoControlService::class.java))
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (!photoNotificationPermissionRequested) {
+                photoNotificationPermissionRequested = true
+                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            return
+        }
+
+        ContextCompat.startForegroundService(
+            this,
+            Intent(this, PhotoControlService::class.java).setAction(PhotoControlService.ACTION_START)
+        )
     }
 
     private fun updateMediaCounter() {
