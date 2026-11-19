@@ -409,31 +409,14 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
 
     private fun setupPreviewCards() {
         previewCards.clear()
-        val cardColor = MaterialColors.getColor(
-            this, com.google.android.material.R.attr.colorSurface, Color.WHITE
-        )
-        fun createCard(elevationDp: Float): ImageView = ImageView(this).apply {
+        val image = ImageView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            background = GradientDrawable().apply {
-                setColor(cardColor)
-                cornerRadius = 12f * resources.displayMetrics.density
-                setStroke(
-                    (2f * resources.displayMetrics.density).toInt(),
-                    MaterialColors.getColor(this@MainActivity, com.google.android.material.R.attr.colorOutline, Color.LTGRAY)
-                )
-            }
-            setPadding(
-                (3f * resources.displayMetrics.density).toInt(),
-                (3f * resources.displayMetrics.density).toInt(),
-                (3f * resources.displayMetrics.density).toInt(),
-                (3f * resources.displayMetrics.density).toInt()
-            )
-            clipToOutline = true
-            elevation = elevationDp * resources.displayMetrics.density
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setBackgroundColor(Color.TRANSPARENT)
+            clipToOutline = false
             isClickable = true
             setOnTouchListener { view, event ->
                 val touchSlop = ViewConfiguration.get(this@MainActivity).scaledTouchSlop
@@ -475,41 +458,22 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
                 }
             }
         }
-        val backTwo = createCard(2f)
-        val backOne = createCard(4f)
-        val front = createCard(6f)
-        previewCards.addAll(listOf(front, backOne, backTwo))
+        previewCards.add(image)
         previewStack.removeAllViews()
-        previewStack.addView(backTwo)
-        previewStack.addView(backOne)
-        previewStack.addView(front)
-        ivPreview = front
-        resetPreviewCardPositions()
+        previewStack.addView(image)
+        ivPreview = image
     }
 
     private fun resetPreviewCardPositions() {
-        val density = resources.displayMetrics.density
-        previewCards.forEachIndexed { index, card ->
+        previewCards.forEach { card ->
             card.animate().cancel()
-            val inset = (22f - index * 11f) * density
-            val params = card.layoutParams as FrameLayout.LayoutParams
-            params.width = FrameLayout.LayoutParams.MATCH_PARENT
-            params.height = FrameLayout.LayoutParams.MATCH_PARENT
-            params.setMargins(inset.toInt(), inset.toInt(), inset.toInt(), inset.toInt())
-            card.layoutParams = params
             card.translationX = 0f
             card.translationY = 0f
             card.scaleX = 1f
             card.scaleY = 1f
             card.rotation = 0f
             card.alpha = 1f
-            card.elevation = (8f - index * 3f) * density
         }
-        // Keep the active photo on top; the next two photos remain visibly exposed around it.
-        previewStack.removeAllViews()
-        previewStack.addView(previewCards[2])
-        previewStack.addView(previewCards[1])
-        previewStack.addView(previewCards[0])
     }
 
     private fun setPreviewImage(imageView: ImageView, path: String): Boolean {
@@ -537,63 +501,32 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
 
     private fun updatePreview(path: String) {
         val valid = path.isNotEmpty() && File(path).exists() && setPreviewImage(ivPreview, path)
-        if (!valid) {
-            previewCards.forEach { it.setImageDrawable(null) }
-            tvNoPreview.visibility = View.VISIBLE
-            btnDeleteMedia.visibility = View.GONE
-            previewCards.drop(1).forEach { it.visibility = View.GONE }
-            resetPreviewCardPositions()
-            return
-        }
-
-        tvNoPreview.visibility = View.GONE
-        btnDeleteMedia.visibility = View.VISIBLE
-        previewCards.drop(1).forEachIndexed { offset, card ->
-            val mediaIndex = currentMediaIndex + offset + 1
-            val nextPath = mediaPaths.getOrNull(mediaIndex)
-            if (mediaPaths.size > 1 && nextPath != null && File(nextPath).exists() &&
-                setPreviewImage(card, nextPath)) {
-                card.visibility = View.VISIBLE
-            } else {
-                card.setImageDrawable(null)
-                card.visibility = View.GONE
-            }
-        }
+        tvNoPreview.visibility = if (valid) View.GONE else View.VISIBLE
+        btnDeleteMedia.visibility = if (valid) View.VISIBLE else View.GONE
+        if (!valid) ivPreview.setImageDrawable(null)
         resetPreviewCardPositions()
     }
 
     private fun animateMediaTo(index: Int, direction: Int) {
-        if (index !in mediaPaths.indices || previewCards.size < 2) return
-        val outgoing = previewCards[0]
-        val incoming = previewCards[1]
-        if (!setPreviewImage(incoming, mediaPaths[index])) return
-
+        if (index !in mediaPaths.indices || mediaPaths.size < 2) return
+        val preview = ivPreview
         val density = resources.displayMetrics.density
-        incoming.visibility = View.VISIBLE
-        incoming.translationX = direction * 26f * density
-        incoming.translationY = 8f * density
-        incoming.scaleX = 0.94f
-        incoming.scaleY = 0.94f
-        incoming.bringToFront()
-
-        incoming.animate()
-            .translationX(0f).translationY(0f)
-            .scaleX(1f).scaleY(1f)
-            .setDuration(280)
-            .setInterpolator(DecelerateInterpolator())
-            .start()
-
-        outgoing.animate()
-            .translationX(-direction * (outgoing.width + 40f * density))
-            .rotation(-direction * 7f)
+        preview.animate().cancel()
+        preview.animate()
+            .translationX(-direction * (preview.width * 0.28f))
             .alpha(0f)
-            .setDuration(280)
+            .setDuration(150)
             .setInterpolator(DecelerateInterpolator())
             .withEndAction {
-                previewCards.remove(incoming)
-                previewCards.add(0, incoming)
-                ivPreview = incoming
                 showMediaAt(index)
+                preview.translationX = direction * (preview.width * 0.18f)
+                preview.alpha = 0f
+                preview.animate()
+                    .translationX(0f)
+                    .alpha(1f)
+                    .setDuration(190)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
             }
             .start()
     }
