@@ -26,6 +26,7 @@ class PhotoControlService : Service() {
 
     companion object {
         const val ACTION_START = "com.hazbu.xcam.action.PHOTO_CONTROL_START"
+        const val ACTION_MEDIA_CLEARED = "com.hazbu.xcam.action.PHOTO_MEDIA_CLEARED"
         private const val ACTION_PREVIOUS = "com.hazbu.xcam.action.PHOTO_CONTROL_PREVIOUS"
         private const val ACTION_NEXT = "com.hazbu.xcam.action.PHOTO_CONTROL_NEXT"
         private const val ACTION_STOP = "com.hazbu.xcam.action.PHOTO_CONTROL_STOP"
@@ -43,9 +44,8 @@ class PhotoControlService : Service() {
             ACTION_PREVIOUS -> movePhoto(-1)
             ACTION_NEXT -> movePhoto(1)
             ACTION_STOP -> {
-                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                    .putBoolean("photo_control_stopped", true)
-                    .apply()
+                clearSelectedMedia()
+                notifyMediaCleared()
                 stopForegroundAndRemove()
                 stopSelf()
                 return START_NOT_STICKY
@@ -74,6 +74,32 @@ class PhotoControlService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        clearSelectedMedia()
+        notifyMediaCleared()
+        stopForegroundAndRemove()
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
+
+    private fun clearSelectedMedia() {
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_MEDIA_PATH)
+            .putString("media_paths", JSONArray().toString())
+            .putInt("current_media_index", 0)
+            .putBoolean("photo_control_stopped", true)
+            .putBoolean(com.hazbu.xcam.data.Constants.KEY_IS_MIRRORED, false)
+            .putInt(com.hazbu.xcam.data.Constants.KEY_ROTATION_ANGLE, 0)
+            .apply()
+
+        filesDir.listFiles { _, name -> name.startsWith("virtual.") }
+            ?.forEach { it.delete() }
+    }
+
+    private fun notifyMediaCleared() {
+        sendBroadcast(Intent(ACTION_MEDIA_CLEARED).setPackage(packageName))
+    }
 
     private fun movePhoto(direction: Int) {
         val paths = readMediaPaths()
