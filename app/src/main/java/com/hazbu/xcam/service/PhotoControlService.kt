@@ -170,7 +170,7 @@ class PhotoControlService : Service() {
                 .addAction(
                     Notification.Action.Builder(
                         android.graphics.drawable.Icon.createWithResource(this, nextIcon),
-                        "▶",
+                        "下一张",
                         next
                     ).build()
                 )
