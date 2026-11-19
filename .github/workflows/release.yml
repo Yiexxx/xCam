@@ -1,6 +1,6 @@
 name: Android Release APK
 
-# Release version: 1.0.0 (versionCode 1) - multi-photo carousel swipe fix
+# Release version: 1.0.0 (versionCode 1) - stacked photo carousel animations
 
 on:
   push:
