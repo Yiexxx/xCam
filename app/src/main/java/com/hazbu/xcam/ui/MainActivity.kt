@@ -1,7 +1,6 @@
 package com.hazbu.xcam.ui
 
 import android.Manifest
-import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -95,7 +94,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private var touchStartX = 0f
     private var touchStartY = 0f
     private var mXposedService: XposedService? = null
-    private var photoNotificationPermissionRequested = false
     private var mediaClearedReceiverRegistered = false
     private val mediaClearedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -139,7 +137,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         XposedServiceHelper.registerListener(this)
         setupWindowInsets()
         setupUI()
-        clearSelectionIfPreviousTaskWasRemoved()
         loadSettings()
         updateModuleStatusUI()
         ContextCompat.registerReceiver(
@@ -157,35 +154,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             mediaClearedReceiverRegistered = false
         }
         super.onDestroy()
-    }
-
-    /**
-     * Home leaves the existing task in Recents, so its taskId remains present.
-     * Swiping the task away removes the old taskId. Detect that on the next
-     * launch as a fallback for devices that do not reliably call onTaskRemoved().
-     */
-    private fun clearSelectionIfPreviousTaskWasRemoved() {
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        val previousTaskId = prefs.getInt("photo_control_task_id", -1)
-        val currentTaskId = taskId
-
-        if (previousTaskId != -1 && previousTaskId != currentTaskId) {
-            val previousTaskStillExists = try {
-                getSystemService(ActivityManager::class.java)
-                    .appTasks
-                    .any { task -> task.taskInfo?.let { info -> info.id == previousTaskId } ?: true }
-            } catch (_: Exception) {
-                // If Android cannot verify the task list, preserve photos rather than
-                // accidentally clearing them after an ordinary return to the app.
-                true
-            }
-
-            if (!previousTaskStillExists) {
-                PhotoControlService.clearSelectionAndStop(this)
-            }
-        }
-
-        prefs.edit().putInt("photo_control_task_id", currentTaskId).commit()
     }
 
     override fun onResume() {
@@ -740,16 +708,9 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             return
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            if (!photoNotificationPermissionRequested) {
-                photoNotificationPermissionRequested = true
-                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-            return
-        }
-
+        // Android permits foreground services without POST_NOTIFICATIONS.
+        // Keep this service running so onTaskRemoved() can distinguish a
+        // dismissed Recents task from an ordinary Home/background transition.
         ContextCompat.startForegroundService(
             this,
             Intent(this, PhotoControlService::class.java).setAction(PhotoControlService.ACTION_START)
