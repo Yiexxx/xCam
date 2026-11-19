@@ -138,6 +138,9 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         XposedServiceHelper.registerListener(this)
         setupWindowInsets()
         setupUI()
+        if (savedInstanceState == null) {
+            clearMediaSelectionForFreshLaunch()
+        }
         loadSettings()
         updateModuleStatusUI()
         ContextCompat.registerReceiver(
@@ -158,6 +161,21 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             mediaClearedReceiverRegistered = false
         }
         super.onDestroy()
+    }
+
+    private fun clearMediaSelectionForFreshLaunch() {
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+            .remove(KEY_MEDIA_PATH)
+            .putString("media_paths", JSONArray().toString())
+            .putInt("current_media_index", 0)
+            .putBoolean("photo_control_stopped", true)
+            .putBoolean(KEY_IS_MIRRORED, false)
+            .putInt(KEY_ROTATION_ANGLE, 0)
+            .commit()
+
+        filesDir.listFiles { _, name -> name.startsWith(VIRTUAL_PREFIX) }
+            ?.forEach { it.delete() }
+        stopService(Intent(this, PhotoControlService::class.java))
     }
 
     private fun clearMediaSelectionOnExit() {
