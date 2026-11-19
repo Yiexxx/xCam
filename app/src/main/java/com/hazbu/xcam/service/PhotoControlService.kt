@@ -163,14 +163,14 @@ class PhotoControlService : Service() {
                 .addAction(
                     Notification.Action.Builder(
                         android.graphics.drawable.Icon.createWithResource(this, previousIcon),
-                        "上一张",
+                        "",
                         previous
                     ).build()
                 )
                 .addAction(
                     Notification.Action.Builder(
                         android.graphics.drawable.Icon.createWithResource(this, nextIcon),
-                        "下一张",
+                        "",
                         next
                     ).build()
                 )
@@ -191,8 +191,8 @@ class PhotoControlService : Service() {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentIntent)
-                .addAction(previousIcon, "上一张", previous)
-                .addAction(nextIcon, "下一张", next)
+                .addAction(previousIcon, "", previous)
+                .addAction(nextIcon, "", next)
                 .build()
         }
     }
