@@ -5,7 +5,7 @@ object Constants {
     const val KEY_IS_ENABLED = "is_enabled"
     const val KEY_IS_MIRRORED = "is_mirrored"
     const val KEY_ROTATION_ANGLE = "rotation_angle"
-    const val AUTHORITY = "com.hazbu.xcam.provider"
+    const val AUTHORITY = "com.yie.camx.provider"
 
     const val DEFAULT_CAPTURE_WIDTH = 1280
     const val DEFAULT_CAPTURE_HEIGHT = 1280
