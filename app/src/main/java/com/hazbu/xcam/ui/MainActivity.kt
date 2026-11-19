@@ -458,21 +458,89 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
                 }
             }
         }
+        val density = resources.displayMetrics.density
+        fun createStackLayer(elevationDp: Float): ImageView = ImageView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            background = GradientDrawable().apply {
+                setColor(Color.TRANSPARENT)
+                cornerRadius = 14f * density
+            }
+            clipToOutline = true
+            elevation = elevationDp * density
+            isClickable = false
+        }
+        val previousImage = createStackLayer(4f)
+        val nextImage = createStackLayer(7f)
+        image.background = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            cornerRadius = 14f * density
+        }
+        image.clipToOutline = true
+        image.elevation = 10f * density
+
+        previewCards.add(previousImage)
+        previewCards.add(nextImage)
         previewCards.add(image)
         previewStack.removeAllViews()
+        previewStack.addView(previousImage)
+        previewStack.addView(nextImage)
         previewStack.addView(image)
         ivPreview = image
     }
 
     private fun resetPreviewCardPositions() {
-        previewCards.forEach { card ->
+        val density = resources.displayMetrics.density
+        previewCards.forEachIndexed { index, card ->
             card.animate().cancel()
-            card.translationX = 0f
-            card.translationY = 0f
-            card.scaleX = 1f
-            card.scaleY = 1f
-            card.rotation = 0f
-            card.alpha = 1f
+            card.translationX = when (index) {
+                0 -> -15f * density
+                1 -> 15f * density
+                else -> 0f
+            }
+            card.translationY = if (index == 2) 0f else 5f * density
+            val scale = when (index) {
+                0 -> 0.93f
+                1 -> 0.96f
+                else -> 1f
+            }
+            card.scaleX = scale
+            card.scaleY = scale
+            card.rotation = when (index) {
+                0 -> -3f
+                1 -> 2.5f
+                else -> 0f
+            }
+            card.alpha = when (index) {
+                0 -> 0.72f
+                1 -> 0.88f
+                else -> 1f
+            }
+            card.visibility = when {
+                index == 2 -> View.VISIBLE
+                mediaPaths.size > 2 -> View.VISIBLE
+                index == 1 && mediaPaths.size == 2 -> View.VISIBLE
+                else -> View.GONE
+            }
+        }
+    }
+
+    private fun updatePreviewStackImages() {
+        if (previewCards.size < 3) return
+        val previousImage = previewCards[0]
+        val nextImage = previewCards[1]
+        previousImage.setImageDrawable(null)
+        nextImage.setImageDrawable(null)
+        if (mediaPaths.size < 2) return
+
+        val nextIndex = (currentMediaIndex + 1) % mediaPaths.size
+        setPreviewImage(nextImage, mediaPaths[nextIndex])
+        if (mediaPaths.size > 2) {
+            val previousIndex = (currentMediaIndex - 1 + mediaPaths.size) % mediaPaths.size
+            setPreviewImage(previousImage, mediaPaths[previousIndex])
         }
     }
 
@@ -504,6 +572,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         tvNoPreview.visibility = if (valid) View.GONE else View.VISIBLE
         btnDeleteMedia.visibility = if (valid) View.VISIBLE else View.GONE
         if (!valid) ivPreview.setImageDrawable(null)
+        updatePreviewStackImages()
         resetPreviewCardPositions()
     }
 
