@@ -429,12 +429,24 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private fun updatePreviewTransform() {
         ivPreview.scaleX = if (isMirrored) -1f else 1f
         ivPreview.rotation = rotationAngle.toFloat()
-        val activeColor = MaterialColors.getColor(btnMirror, androidx.appcompat.R.attr.colorPrimary)
-        val activeIconColor = MaterialColors.getColor(btnMirror, com.google.android.material.R.attr.colorOnPrimary, android.graphics.Color.WHITE)
-        val inactiveColor = MaterialColors.getColor(btnMirror, com.google.android.material.R.attr.colorSecondaryContainer, android.graphics.Color.LTGRAY)
-        val inactiveIconColor = MaterialColors.getColor(btnMirror, com.google.android.material.R.attr.colorOnSecondaryContainer, android.graphics.Color.DKGRAY)
-        btnMirror.setBackgroundColor(if (isMirrored) activeColor else inactiveColor)
-        btnMirror.iconTint = android.content.res.ColorStateList.valueOf(if (isMirrored) activeIconColor else inactiveIconColor)
+        // Keep the complete photo-action row visually consistent; mirror state
+        // changes the preview only and must not recolor one button independently.
+        val buttonBackground = MaterialColors.getColor(
+            btnMirror,
+            com.google.android.material.R.attr.colorSecondaryContainer,
+            android.graphics.Color.LTGRAY
+        )
+        val buttonIcon = MaterialColors.getColor(
+            btnMirror,
+            com.google.android.material.R.attr.colorOnSecondaryContainer,
+            android.graphics.Color.DKGRAY
+        )
+        val backgroundTint = android.content.res.ColorStateList.valueOf(buttonBackground)
+        val iconTint = android.content.res.ColorStateList.valueOf(buttonIcon)
+        listOf(btnRotateLeft, btnDeleteMedia, btnMirror, btnRotateRight).forEach { button ->
+            button.backgroundTintList = backgroundTint
+            button.iconTint = iconTint
+        }
     }
 
     private fun setupPreviewCards() {
