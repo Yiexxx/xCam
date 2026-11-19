@@ -55,20 +55,28 @@ jobs:
       - name: Rename APK
         run: |
           REPO_NAME="${GITHUB_REPOSITORY##*/}"
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then TAG_NAME="${GITHUB_REF_NAME}"; else TAG_NAME="manual-${GITHUB_RUN_NUMBER}"; fi
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_EVENT_HEAD_COMMIT_MESSAGE:-}" == release:* ]]; then
+            TAG_NAME="v1.0.0"
+          else
+            TAG_NAME="manual-${GITHUB_RUN_NUMBER}"
+          fi
           mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/${REPO_NAME}-${TAG_NAME}.apk"
 
       - name: Publish GitHub Release
-        if: github.ref_type == 'tag'
+        if: github.ref_type == 'tag' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release:'))
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0' }}
+          target_commitish: ${{ github.sha }}
           files: app/build/outputs/apk/release/*.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload signed APK artifact
-        if: github.ref_type != 'tag'
+        if: github.ref_type != 'tag' && !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release:'))
         uses: actions/upload-artifact@v4
         with:
           name: xCam-release-apk
