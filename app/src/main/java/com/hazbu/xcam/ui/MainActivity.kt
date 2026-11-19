@@ -421,7 +421,17 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             background = GradientDrawable().apply {
                 setColor(cardColor)
                 cornerRadius = 12f * resources.displayMetrics.density
+                setStroke(
+                    (2f * resources.displayMetrics.density).toInt(),
+                    MaterialColors.getColor(this@MainActivity, com.google.android.material.R.attr.colorOutline, Color.LTGRAY)
+                )
             }
+            setPadding(
+                (3f * resources.displayMetrics.density).toInt(),
+                (3f * resources.displayMetrics.density).toInt(),
+                (3f * resources.displayMetrics.density).toInt(),
+                (3f * resources.displayMetrics.density).toInt()
+            )
             clipToOutline = true
             elevation = elevationDp * resources.displayMetrics.density
             isClickable = true
@@ -481,14 +491,21 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         val density = resources.displayMetrics.density
         previewCards.forEachIndexed { index, card ->
             card.animate().cancel()
-            card.translationX = if (index == 1) 12f * density else if (index == 2) 23f * density else 0f
-            card.translationY = if (index == 1) 8f * density else if (index == 2) 16f * density else 0f
-            card.scaleX = if (index == 1) 0.96f else if (index == 2) 0.92f else 1f
-            card.scaleY = if (index == 1) 0.96f else if (index == 2) 0.92f else 1f
+            val inset = (22f - index * 11f) * density
+            val params = card.layoutParams as FrameLayout.LayoutParams
+            params.width = FrameLayout.LayoutParams.MATCH_PARENT
+            params.height = FrameLayout.LayoutParams.MATCH_PARENT
+            params.setMargins(inset.toInt(), inset.toInt(), inset.toInt(), inset.toInt())
+            card.layoutParams = params
+            card.translationX = 0f
+            card.translationY = 0f
+            card.scaleX = 1f
+            card.scaleY = 1f
             card.rotation = 0f
             card.alpha = 1f
+            card.elevation = (8f - index * 3f) * density
         }
-        // Draw the active card last so it remains above the two visible backing cards.
+        // Keep the active photo on top; the next two photos remain visibly exposed around it.
         previewStack.removeAllViews()
         previewStack.addView(previewCards[2])
         previewStack.addView(previewCards[1])
