@@ -132,7 +132,7 @@ class PhotoControlService : Service() {
     }
 
     private fun buildNotification(paths: List<String>, index: Int): Notification {
-        val title = "Cam照片控制"
+        val title = "Camx"
         val text = "第 ${index + 1} / ${paths.size} 张照片"
         val thumbnail = loadThumbnail(paths[index])
         val contentIntent = PendingIntent.getActivity(
@@ -163,14 +163,14 @@ class PhotoControlService : Service() {
                 .addAction(
                     Notification.Action.Builder(
                         android.graphics.drawable.Icon.createWithResource(this, previousIcon),
-                        "",
+                        "◀",
                         previous
                     ).build()
                 )
                 .addAction(
                     Notification.Action.Builder(
                         android.graphics.drawable.Icon.createWithResource(this, nextIcon),
-                        "",
+                        "▶",
                         next
                     ).build()
                 )
@@ -191,8 +191,8 @@ class PhotoControlService : Service() {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentIntent)
-                .addAction(previousIcon, "", previous)
-                .addAction(nextIcon, "", next)
+                .addAction(previousIcon, "◀", previous)
+                .addAction(nextIcon, "▶", next)
                 .build()
         }
     }
