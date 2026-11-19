@@ -1,5 +1,7 @@
 name: Android Release APK
 
+# Release version: 1.0.0 (versionCode 1)
+
 on:
   push:
     branches:
@@ -57,7 +59,7 @@ jobs:
           REPO_NAME="${GITHUB_REPOSITORY##*/}"
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG_NAME="${GITHUB_REF_NAME}"
-          elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_EVENT_HEAD_COMMIT_MESSAGE:-}" == release:* ]]; then
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]] && git log -1 --format=%s | grep -q '^release:'; then
             TAG_NAME="v1.0.0"
           else
             TAG_NAME="manual-${GITHUB_RUN_NUMBER}"
