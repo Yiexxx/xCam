@@ -1,7 +1,6 @@
 package com.hazbu.xcam.ui
 
 import android.Manifest
-import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -139,7 +138,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         XposedServiceHelper.registerListener(this)
         setupWindowInsets()
         setupUI()
-        clearSelectionIfPreviousTaskWasRemoved()
         loadSettings()
         updateModuleStatusUI()
         ContextCompat.registerReceiver(
@@ -157,36 +155,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             mediaClearedReceiverRegistered = false
         }
         super.onDestroy()
-    }
-
-    /**
-     * A task keeps the same taskId when the user leaves xCam with Home and
-     * returns to it. Dismissing xCam from Recents removes that task; the next
-     * launcher start receives a new taskId. This catches task dismissal even
-     * on devices that do not reliably deliver Service.onTaskRemoved().
-     */
-    private fun clearSelectionIfPreviousTaskWasRemoved() {
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        val previousTaskId = prefs.getInt("photo_control_task_id", -1)
-        val currentTaskId = taskId
-
-        if (previousTaskId != -1 && previousTaskId != currentTaskId) {
-            // A changed taskId alone is not proof that the user dismissed xCam.
-            // If Android still reports the previous task, preserve the selection.
-            val previousTaskStillExists = try {
-                getSystemService(ActivityManager::class.java)
-                    .appTasks
-                    .any { task -> task.taskInfo?.let { info -> info.id == previousTaskId } ?: true }
-            } catch (_: Exception) {
-                false
-            }
-
-            if (!previousTaskStillExists) {
-                PhotoControlService.clearSelectionAndStop(this)
-            }
-        }
-
-        prefs.edit().putInt("photo_control_task_id", currentTaskId).commit()
     }
 
     override fun onResume() {
